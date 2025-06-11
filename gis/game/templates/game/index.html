@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}GeoGame - Главная{% endblock %}
+{% block content %}
+    <h1>Добро пожаловать в GeoGame!</h1>
+    <a href="{% url 'solo_play' %}" class="play-button">Играть одиночку</a>
+    <a href="{% url 'play' %}" class="play-button">Играть с друзьями</a>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}GeoGame - Профиль{% endblock %}
+{% block content %}
+    <h1>Профиль пользователя {{ user.username }}</h1>
+    <p>Email: {{ user.email }}</p>
+    <h2>Ваши сражения</h2>
+    {% if battles %}
+        <ul>
+            {% for battle in battles %}
+                <li>
+                    Сражение против
+                    {% if battle.player1 == user %}
+                        {{ battle.player2.username }}
+                    {% else %}
+                        {{ battle.player1.username }}
+                    {% endif %}
+                    | Победитель:
+                    {% if battle.winner %}
+                        {{ battle.winner.username }}
+                    {% else %}
+                        Ожидает завершения
+                    {% endif %}
+                    | Ваш результат:
+                    {% if battle.player1 == user %}
+                        {{ battle.player1_score }}
+                    {% else %}
+                        {{ battle.player2_score }}
+                    {% endif %}
+                    <a href="{% url 'battle_detail' battle.id %}">Подробности</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Вы ещё не участвовали в сражениях.</p>
+    {% endif %}
+{% endblock %}

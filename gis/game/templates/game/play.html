@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+   {% block title %}GeoGame - Игра{% endblock %}
+   {% block content %}
+       {% if error %}
+           <p>{{ error }}</p>
+       {% else %}
+           <h1>Угадайте место!</h1>
+           <img src="{% static landmark.image %}" alt="{{ landmark.name }}" class="landmark-image">
+           <div id="map">{{ map_html|safe }}</div>
+           <button id="submit-guess">Поставить метку</button>
+           <div id="result"></div>
+           <input type="hidden" id="landmark-id" value="{{ landmark.id }}">
+           <input type="hidden" id="user-lat" value="">
+           <input type="hidden" id="user-lon" value="">
+       {% endif %}
+       <script>
+           document.addEventListener('click', function(e) {
+               if (e.target.closest('.leaflet-popup-content')) {
+                   let coords = e.target.closest('.leaflet-popup-content').innerText.split(',');
+                   document.getElementById('user-lat').value = coords[0].trim();
+                   document.getElementById('user-lon').value = coords[1].trim();
+               }
+           });
+
+           $('#submit-guess').click(function() {
+               let lat = $('#user-lat').val();
+               let lon = $('#user-lon').val();
+               let landmark_id = $('#landmark-id').val();
+
+               if (!lat || !lon) {
+                   alert('Пожалуйста, выберите точку на карте.');
+                   return;
+               }
+
+               $.ajax({
+                   url: '{% url "calculate_score" %}',
+                   method: 'POST',
+                   data: {
+                       lat: lat,
+                       lon: lon,
+                       landmark_id: landmark_id,
+                       csrfmiddlewaretoken: '{{ csrf_token }}'
+                   },
+                   success: function(data) {
+                       if (data.error) {
+                           alert(data.error);
+                       } else {
+                           $('#result').html(
+                               `<p>Расстояние: ${data.distance} км</p>
+                               <p>Очки: ${data.score}</p>
+                               <p>Правильное место: (${data.correct_lat}, ${data.correct_lon})</p>`
+                           );
+                       }
+                   },
+                   error: function() {
+                       alert('Ошибка при расчёте очков.');
+                   }
+               });
+           });
+       </script>
+   {% endblock %}
