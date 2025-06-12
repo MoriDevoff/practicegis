@@ -1,97 +1,94 @@
 {% extends 'base.html' %}
-{% load static %}
 {% block title %}GeoGame - Одиночная игра{% endblock %}
 {% block content %}
-    {% if error %}
-        <p>{{ error }}</p>
-    {% else %}
-        <h1>Одиночная игра - Угадайте место!</h1>
-        <img src="{{ landmark.image.url }}" alt="{{ landmark.name }}" class="landmark-image" style="max-width: 100%;">
-        <div id="map" style="height: 400px;"></div>
-        <button id="submit-guess" style="display:none;">Поставить метку</button>
-        <div id="result"></div>
-        <input type="hidden" id="landmark-id" value="{{ landmark.id }}">
-        <input type="hidden" id="landmark-lat" value="{{ landmark.latitude }}">
-        <input type="hidden" id="landmark-lon" value="{{ landmark.longitude }}">
-        <input type="hidden" id="user-lat" value="">
-        <input type="hidden" id="user-lon" value="">
+<h1>Одиночная игра</h1>
+{% if error %}
+    <p>{{ error }}</p>
+{% else %}
+    <h2>Достопримечательность: {{ landmark.name }}</h2>
+    {% if landmark.image %}
+        <img src="{{ landmark.image.url }}" alt="{{ landmark.name }}" style="max-width: 300px;">
     {% endif %}
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <div id="map" style="height: 500px;"></div>
+
+    <form id="scoreForm" method="post" action="{% url 'calculate_score' %}">
+        {% csrf_token %}
+        <input type="hidden" name="lat" id="lat">
+        <input type="hidden" name="lon" id="lon">
+        <input type="hidden" name="landmark_id" value="{{ landmark.id }}">
+        <button type="button" id="confirmBtn" class="btn" style="margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Подтвердить</button>
+    </form>
+
+    <div id="resultModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 1000; text-align: center; width: 300px;">
+        <h3 style="margin-top: 0;">Результат игры</h3>
+        <p id="scoreResult" style="font-size: 18px; margin: 20px 0;"></p>
+        <a href="{% url 'index' %}" class="btn" style="display: inline-block; padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px;">На главную</a>
+    </div>
+    <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;"></div>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var map = L.map('map').setView([0, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
+            var map = L.map('map').setView([{{ map_center_lat }}, {{ map_center_lon }}], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
 
             var userMarker = null;
-            var roundCompleted = false;
+            var confirmed = false;
 
             map.on('click', function(e) {
-                if (roundCompleted) return;
+                if (confirmed) return;
+
+                if (userMarker) map.removeLayer(userMarker);
 
                 var lat = e.latlng.lat;
                 var lon = e.latlng.lng;
-                document.getElementById('user-lat').value = lat;
-                document.getElementById('user-lon').value = lon;
+                document.getElementById('lat').value = lat;
+                document.getElementById('lon').value = lon;
 
-                if (userMarker) {
-                    map.removeLayer(userMarker);
-                }
-                userMarker = L.marker([lat, lon]).addTo(map).bindPopup('Ваша метка').openPopup();
-                document.getElementById('submit-guess').style.display = 'block';
+                userMarker = L.marker([lat, lon]).addTo(map)
+                    .bindPopup('Ваш выбор')
+                    .openPopup();
             });
 
-            $('#submit-guess').click(function() {
-                if (roundCompleted) return;
-
-                let lat = $('#user-lat').val();
-                let lon = $('#user-lon').val();
-                let landmark_id = $('#landmark-id').val();
-
-                if (!lat || !lon) {
-                    alert('Пожалуйста, выберите точку на карте.');
+            document.getElementById('confirmBtn').addEventListener('click', function() {
+                if (!userMarker) {
+                    alert('Пожалуйста, выберите место на карте!');
                     return;
                 }
 
-                $.ajax({
-                    url: '{% url "calculate_score" %}',
+                fetch('{% url "calculate_score" %}', {
                     method: 'POST',
-                    data: {
-                        lat: lat,
-                        lon: lon,
-                        landmark_id: landmark_id,
-                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': '{{ csrf_token }}'
                     },
-                    success: function(data) {
-                        if (data.error) {
-                            alert(data.error);
-                        } else {
-                            $('#result').html(
-                                `<div class="modal" id="resultModal" style="display:block; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; border:1px solid black;">
-                                    <p>Расстояние: ${data.distance} км</p>
-                                    <p>Очки: ${data.score}</p>
-                                    <p>Правильное место: (${data.correct_lat}, ${data.correct_lon})</p>
-                                    <button onclick="window.location.href='{% url "index" %}'">На главную</button>
-                                </div>`
-                            );
-                            // Отключаем карту и кнопку после завершения
-                            roundCompleted = true;
-                            map.off('click');
-                            document.getElementById('submit-guess').style.display = 'none';
-                            if (userMarker) map.removeLayer(userMarker);
-                        }
-                    },
-                    error: function() {
-                        alert('Ошибка при расчёте очков.');
+                    body: new URLSearchParams(new FormData(document.getElementById('scoreForm')))
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.score !== undefined) {
+                        confirmed = true;
+                        document.getElementById('scoreResult').innerText =
+                            'Вы набрали: ' + data.score + ' очков';
+                        document.getElementById('resultModal').style.display = 'block';
+                        document.getElementById('overlay').style.display = 'block';
+
+                        // Показываем правильный ответ
+                        L.marker([{{ landmark.latitude }}, {{ landmark.longitude }}], {
+                            icon: L.icon({
+                                iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-red.png',
+                                iconSize: [25, 41],
+                                iconAnchor: [12, 41],
+                                popupAnchor: [1, -34]
+                            })
+                        }).addTo(map).bindPopup('Правильное место').openPopup();
                     }
                 });
             });
         });
     </script>
-    <style>
-        .modal { z-index: 1000; }
-    </style>
+{% endif %}
 {% endblock %}

@@ -1,71 +1,170 @@
-{% load static %}
-   {% extends 'base.html' %}
-   {% block title %}GeoGame - Сражение{% endblock %}
-   {% block content %}
-       <h1>Сражение: {{ battle.player1.username }} vs {{ battle.player2.username|default:"Ожидает второго игрока" }}</h1>
-       {% if battle.player2 %}
-           <img src="{% static battle.landmark.image %}" alt="{{ battle.landmark.name }}" class="landmark-image">
-           <div id="map">{{ map_html|safe }}</div>
-           <button id="submit-guess">Поставить метку</button>
-           <div id="result"></div>
-           <input type="hidden" id="landmark-id" value="{{ battle.landmark.id }}">
-           <input type="hidden" id="battle-id" value="{{ battle.id }}">
-           <input type="hidden" id="user-lat" value="">
-           <input type="hidden" id="user-lon" value="">
-           {% if battle.winner %}
-               <p>Победитель: {{ battle.winner.username }}</p>
-               <p>{{ battle.player1.username }}: {{ battle.player1_score }} очков</p>
-               <p>{{ battle.player2.username }}: {{ battle.player2_score }} очков</p>
-           {% endif %}
-       {% else %}
-           <p>Ожидание второго игрока...</p>
-       {% endif %}
-       <script>
-           document.addEventListener('click', function(e) {
-               if (e.target.closest('.leaflet-popup-content')) {
-                   let coords = e.target.closest('.leaflet-popup-content').innerText.split(',');
-                   document.getElementById('user-lat').value = coords[0].trim();
-                   document.getElementById('user-lon').value = coords[1].trim();
-               }
-           });
+{% extends 'base.html' %}
+{% block title %}GeoGame - Сражение{% endblock %}
+{% block content %}
+<h1>Сражение</h1>
+<h2>Достопримечательность: {{ landmark.name }}</h2>
+{% if landmark.image %}
+    <img src="{{ landmark.image.url }}" alt="{{ landmark.name }}" style="max-width: 300px;">
+{% endif %}
 
-           $('#submit-guess').click(function() {
-               let lat = $('#user-lat').val();
-               let lon = $('#user-lon').val();
-               let landmark_id = $('#landmark-id').val();
-               let battle_id = $('#battle-id').val();
+<div id="map" style="height: 500px;"></div>
 
-               if (!lat || !lon) {
-                   alert('Пожалуйста, выберите точку на карте.');
-                   return;
-               }
+{% if not is_finished %}
+    <form id="battleForm" method="post" action="{% url 'calculate_score' %}">
+        {% csrf_token %}
+        <input type="hidden" name="lat" id="lat" required>
+        <input type="hidden" name="lon" id="lon" required>
+        <input type="hidden" name="landmark_id" value="{{ landmark.id }}">
+        <input type="hidden" name="battle_id" value="{{ battle.id }}">
+        <button type="button" id="confirmBtn" style="margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Подтвердить ответ</button>
+        <div id="error-message" style="color: red; margin-top: 5px; display: none;">Пожалуйста, выберите место на карте!</div>
+    </form>
+{% endif %}
 
-               $.ajax({
-                   url: '{% url "calculate_score" %}',
-                   method: 'POST',
-                   data: {
-                       lat: lat,
-                       lon: lon,
-                       landmark_id: landmark_id,
-                       battle_id: battle_id,
-                       csrfmiddlewaretoken: '{{ csrf_token }}'
-                   },
-                   success: function(data) {
-                       if (data.error) {
-                           alert(data.error);
-                       } else {
-                           $('#result').html(
-                               `<p>Расстояние: ${data.distance} км</p>
-                               <p>Очки: ${data.score}</p>
-                               <p>Правильное место: (${data.correct_lat}, ${data.correct_lon})</p>`
-                           );
-                           window.location.reload(); // Обновляем страницу для отображения результатов
-                       }
-                   },
-                   error: function() {
-                       alert('Ошибка при расчёте очков.');
-                   }
-               });
-           });
-       </script>
-   {% endblock %}
+<div id="resultModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 1000; text-align: center; width: 300px;">
+    <h3 style="margin-top: 0;">Результат сражения</h3>
+    <div id="battleResult"></div>
+    <a href="{% url 'index' %}" class="btn" style="display: inline-block; padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px; margin-top: 15px;">На главную</a>
+</div>
+<div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;"></div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    var blueIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    var greenIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    var redIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    var map = L.map('map').setView([{{ landmark.latitude }}, {{ landmark.longitude }}], 3);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+    var userMarker = null;
+    var hasAnswered = {% if player1_lat and player1_lon and request.user == battle.player1 or player2_lat and player2_lon and request.user == battle.player2 %}true{% else %}false{% endif %};
+    var markers = {};
+
+    const matchmakingSocket = new WebSocket('ws://' + window.location.host + '/ws/matchmaking/');
+    const battleSocket = new WebSocket('ws://' + window.location.host + '/ws/battle/{{ battle.id }}/');
+
+    matchmakingSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        console.log('Matchmaking WebSocket message:', data);
+        if (data.action === 'start') {
+            window.location.href = `/battle/${data.battle_id}/`;
+        }
+    };
+
+    battleSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        console.log('Battle WebSocket message:', data);
+        if (data.action === 'update_markers') {
+            const newMarkers = data.markers;
+            for (let player in newMarkers) {
+                if (!markers[player]) {
+                    markers[player] = L.marker([newMarkers[player].lat, newMarkers[player].lon], {
+                        icon: player === 'player1' ? blueIcon : greenIcon
+                    }).addTo(map).bindPopup(`${newMarkers[player].username}: ${newMarkers[player].score} очков`);
+                } else {
+                    markers[player].setLatLng([newMarkers[player].lat, newMarkers[player].lon]);
+                    markers[player].setPopupContent(`${newMarkers[player].username}: ${newMarkers[player].score} очков`);
+                }
+            }
+        } else if (data.action === 'finish') {
+            L.marker([{{ landmark.latitude }}, {{ landmark.longitude }}], { icon: redIcon })
+                .addTo(map).bindPopup('Правильное место');
+
+            document.getElementById('resultModal').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('battleResult').innerHTML = `
+                <p>{{ battle.player1.username }}: ${data.player1_score} очков</p>
+                <p>{{ battle.player2.username }}: ${data.player2_score} очков</p>
+                ${data.player1_score > data.player2_score ? '<p><strong>Победитель: {{ battle.player1.username }}!</strong></p>' :
+                  data.player2_score > data.player1_score ? '<p><strong>Победитель: {{ battle.player2.username }}!</strong></p>' :
+                  '<p><strong>Ничья!</strong></p>'}
+            `;
+        }
+    };
+
+    if (!hasAnswered) {
+        map.on('click', function(e) {
+            if (userMarker) map.removeLayer(userMarker);
+
+            var lat = e.latlng.lat;
+            var lon = e.latlng.lng;
+            document.getElementById('lat').value = lat;
+            document.getElementById('lon').value = lon;
+
+            userMarker = L.marker([lat, lon], {
+                icon: {% if battle.player1 == user %}blueIcon{% else %}greenIcon{% endif %},
+                draggable: true
+            }).addTo(map).bindPopup('Ваш выбор').openPopup();
+
+            document.getElementById('error-message').style.display = 'none';
+
+            userMarker.on('dragend', function(e) {
+                var newPos = e.target.getLatLng();
+                document.getElementById('lat').value = newPos.lat;
+                document.getElementById('lon').value = newPos.lng;
+            });
+        });
+
+        document.getElementById('confirmBtn').addEventListener('click', function() {
+            if (!document.getElementById('lat').value || !document.getElementById('lon').value) {
+                document.getElementById('error-message').style.display = 'block';
+                return;
+            }
+
+            fetch('{% url "calculate_score" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams(new FormData(document.getElementById('battleForm')))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.score) {
+                    document.getElementById('confirmBtn').disabled = true;
+                    if (userMarker) userMarker.dragging.disable();
+                    battleSocket.send(JSON.stringify({
+                        'action': 'update',
+                        'lat': data.lat || document.getElementById('lat').value,
+                        'lon': data.lon || document.getElementById('lon').value,
+                        'score': data.score,
+                        'battle_id': '{{ battle.id }}'
+                    }));
+                    alert('Ваш ответ принят! Ожидайте результата...');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка: ' + error.message);
+            });
+        });
+    }
+</script>
+{% endblock %}
