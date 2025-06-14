@@ -1,0 +1,113 @@
+{% extends 'game/base.html' %}
+
+{% block title %}Ожидание соперника - Географическая игра{% endblock %}
+
+{% block content %}
+<div class="waiting-container">
+    <div class="waiting-message">
+        <div id="waitingContent">
+            <i class="fas fa-spinner fa-spin"></i>
+            <h2>{{ message }}</h2>
+            <p>Пожалуйста, подождите, пока найдется соперник...</p>
+        </div>
+        <div id="battleReadyContent" style="display: none;">
+            <i class="fas fa-check-circle"></i>
+            <h2>Соперник найден!</h2>
+            <p>Оба игрока готовы к сражению!</p>
+            <a href="#" id="battleButton" class="game-button">
+                <i class="fas fa-play"></i>
+                Начать сражение
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.waiting-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+}
+
+.waiting-message {
+    text-align: center;
+    padding: 2rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    max-width: 400px;
+    width: 100%;
+}
+
+.waiting-message i {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.waiting-message h2 {
+    color: var(--text-color);
+    margin: 0 0 1rem 0;
+}
+
+.waiting-message p {
+    color: #666;
+    margin: 0 0 1.5rem 0;
+}
+
+.waiting-message .game-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+}
+
+.waiting-message .game-button:hover {
+    background-color: #1976D2;
+}
+
+.waiting-message .game-button i {
+    font-size: 1.2rem;
+    margin: 0;
+}
+</style>
+
+<script>
+    // Если битва уже готова при загрузке страницы
+    {% if is_battle_ready %}
+        document.getElementById('waitingContent').style.display = 'none';
+        document.getElementById('battleReadyContent').style.display = 'block';
+        document.getElementById('battleButton').href = "{% url 'battle_detail' battle_id=battle_id %}";
+    {% else %}
+        function checkBattleStatus() {
+            fetch('/online_matchmaking/check/', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'battle_ready') {
+                    document.getElementById('waitingContent').style.display = 'none';
+                    document.getElementById('battleReadyContent').style.display = 'block';
+                    document.getElementById('battleButton').href = `/battle/${data.battle_id}/`;
+                }
+            });
+        }
+
+        // Проверяем статус каждые 2 секунды
+        setInterval(checkBattleStatus, 2000);
+        // Проверяем сразу при загрузке страницы
+        checkBattleStatus();
+    {% endif %}
+</script>
+{% endblock %} 

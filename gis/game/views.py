@@ -20,6 +20,7 @@ from asgiref.sync import async_to_sync
 from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.db import models
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -60,11 +61,6 @@ class BattleConsumer(JsonWebsocketConsumer):
             'action': 'reload'
         })
         logger.info(f"Sent WebSocket reload message for battle {self.battle_id}")
-
-# Очередь для онлайн подбора
-online_queue = []
-# Хранилище активных боёв
-active_battles = {}
 
 def index(request):
     return render(request, 'game/index.html')
@@ -201,7 +197,9 @@ def battle_detail(request, battle_id):
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
-            'is_finished': battle.player1_score is not None and battle.player2_score is not None
+            'is_finished': battle.player1_score is not None and battle.player2_score is not None,
+            'player1_score': battle.player1_score,
+            'player2_score': battle.player2_score
         })
 
     m = folium.Map(location=[battle.landmark.latitude, battle.landmark.longitude], zoom_start=10, tiles='OpenStreetMap')
@@ -245,89 +243,73 @@ def battle_detail(request, battle_id):
 @login_required
 def online_matchmaking(request):
     if request.method == 'POST':
-        # Проверяем, есть ли пользователь в очереди
-        if PlayerQueue.objects.filter(user=request.user).exists():
-            messages.info(request, 'Вы уже в очереди на поиск соперника!')
-            logger.info(f"User {request.user.username} already in queue")
-            return redirect('index')
-
-        # Добавляем пользователя в очередь
-        PlayerQueue.objects.create(user=request.user)
-        messages.success(request, 'Вы добавлены в очередь для онлайн-сражения!')
-        logger.info(f"User {request.user.username} added to queue, total: {PlayerQueue.objects.count()}")
-
-        # Проверяем, достаточно ли игроков для создания боя
-        if PlayerQueue.objects.count() >= 2:
-            players = PlayerQueue.objects.all()[:2]
-            player1 = players[0].user
-            player2 = players[1].user
-            try:
-                landmark = random.choice(Landmark.objects.all())
-                battle = Battle.objects.create(
-                    player1=player1,
-                    player2=player2,
-                    landmark=landmark,
-                    created_at=timezone.now()
-                )
-                logger.info(f"Battle {battle.id} created with players {player1.username} vs {player2.username}")
-
-                # Удаляем игроков из очереди
-                PlayerQueue.objects.filter(user__in=[player1, player2]).delete()
-                logger.info(f"Players {player1.username} and {player2.username} removed from queue")
-
-                # Отправляем уведомление через WebSocket обоим игрокам
-                channel_layer = get_channel_layer()
-                for player in [player1, player2]:
-                    async_to_sync(channel_layer.group_send)(
-                        f"matchmaking_{player.username}",  # Группа для конкретного пользователя
-                        {
-                            'type': 'battle.start',
-                            'battle_id': battle.id
-                        }
-                    )
-                logger.info(f"Sent WebSocket start message for battle {battle.id} to {player1.username} and {player2.username}")
-
-                # Перенаправляем обоих игроков на страницу боя
-                return redirect('battle', battle_id=battle.id)
-            except ValueError as e:
-                logger.error(f"Error creating battle: {str(e)}")
-                messages.error(request, f"Ошибка создания боя: {str(e)}")
-                PlayerQueue.objects.filter(user=request.user).delete()
-
-        return redirect('index')
-
+        # Проверяем, не находится ли пользователь уже в очереди
+        if not PlayerQueue.objects.filter(user=request.user).exists():
+            # Добавляем пользователя в очередь
+            PlayerQueue.objects.create(user=request.user)
+            logger.info(f"User {request.user.username} added to queue")
+        
+        # Проверяем, есть ли второй игрок в очереди
+        queue_count = PlayerQueue.objects.count()
+        if queue_count >= 2:
+            # Создаем битву
+            landmark = random.choice(Landmark.objects.all())
+            battle = Battle.objects.create(
+                player1=request.user,
+                player2=PlayerQueue.objects.exclude(user=request.user).first().user,
+                landmark=landmark
+            )
+            logger.info(f"Battle {battle.id} created between {battle.player1.username} and {battle.player2.username}")
+            
+            # Очищаем очередь
+            PlayerQueue.objects.all().delete()
+            
+            # Если это AJAX-запрос, возвращаем JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'battle_ready',
+                    'battle_id': battle.id
+                })
+            
+            # Если это обычный запрос, показываем страницу ожидания
+            return render(request, 'game/waiting.html', {
+                'message': 'Соперник найден!',
+                'battle_id': battle.id,
+                'is_battle_ready': True
+            })
+        
+        # Если это AJAX-запрос, возвращаем JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'status': 'waiting'
+            })
+        
+        # Если это обычный запрос, показываем страницу ожидания
+        return render(request, 'game/waiting.html', {
+            'message': 'Ожидание соперника...',
+            'is_battle_ready': False
+        })
+    
     return redirect('index')
 
 @login_required
 def check_matchmaking(request):
-    global online_queue, active_battles
-    logger.info(f"Checking matchmaking for user {request.user.username}, queue size: {len(online_queue)}")
-    if request.user in online_queue and len(online_queue) >= 2:
-        player1 = online_queue.pop(0)
-        player2 = online_queue.pop(0)
-        landmark = random.choice(Landmark.objects.all())
-        battle = Battle.objects.create(
-            player1=player1,
-            player2=player2,
-            landmark=landmark,
-            created_at=timezone.now()
-        )
-        active_battles[battle.id] = True
-        logger.info(f"Battle {battle.id} created via check_matchmaking for {player1.username} vs {player2.username}")
-        return JsonResponse({'battle_id': battle.id})
-
-    # Проверяем активные бои для текущего пользователя
-    for battle_id in list(active_battles.keys()):
-        try:
-            battle = Battle.objects.get(id=battle_id)
-            if battle.player1 == request.user or battle.player2 == request.user:
-                logger.info(f"Found active battle {battle_id} for user {request.user.username}")
-                return JsonResponse({'battle_id': battle_id})
-        except Battle.DoesNotExist:
-            del active_battles[battle_id]
-            logger.info(f"Removed non-existent battle {battle_id} from active_battles")
-
-    return JsonResponse({})
+    # Проверяем, есть ли активная битва для пользователя
+    active_battle = Battle.objects.filter(
+        (models.Q(player1=request.user) | models.Q(player2=request.user)) &
+        models.Q(player1_score__isnull=True) & models.Q(player2_score__isnull=True)
+    ).order_by('-created_at').first()
+    
+    if active_battle:
+        return JsonResponse({
+            'status': 'battle_ready',
+            'battle_id': active_battle.id,
+            'message': 'Соперник найден!'
+        })
+    return JsonResponse({
+        'status': 'waiting',
+        'message': 'Ожидание соперника...'
+    })
 
 def validate_field(request):
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':

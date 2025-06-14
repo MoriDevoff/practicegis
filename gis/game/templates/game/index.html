@@ -61,6 +61,10 @@
         <i class="fas fa-spinner fa-spin"></i>
         <p>Ожидание соперника...</p>
     </div>
+
+    <div id="battleReadyContainer" style="display:none; text-align:center; margin-top:20px;">
+        <a id="battleReadyBtn" href="#" class="game-button" style="background:#2196F3; color:white;">Перейти к сражению</a>
+    </div>
 </div>
 
 <style>
@@ -167,30 +171,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         const gameContainer = document.querySelector('.game-container');
         const isAuthenticated = gameContainer.dataset.is_authenticated === 'true';
+        const waitingMessage = document.getElementById('waitingMessage');
 
         if (isAuthenticated) {
-            const matchmakingSocket = new WebSocket(
-                'ws://' + window.location.host + '/ws/matchmaking/'
-            );
-
-            matchmakingSocket.onopen = function() {
-                console.log('Matchmaking WebSocket connected');
-            };
-
-            matchmakingSocket.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                console.log('Matchmaking WebSocket message:', data);
-                if (data.action === 'start') {
-                    window.location.href = `/battle/${data.battle_id}/`;
-                }
-            };
-
-            matchmakingSocket.onclose = function(e) {
-                console.log('Matchmaking WebSocket closed:', e);
-            };
-
-            document.querySelector('.action-form').addEventListener('submit', function() {
-                document.getElementById('waitingMessage').style.display = 'flex';
+            document.querySelector('.action-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                waitingMessage.style.display = 'flex';
+                this.submit();
             });
         }
     });
