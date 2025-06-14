@@ -1,27 +1,174 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}GeoGame - Главная{% endblock %}
 {% block content %}
-<h1>Добро пожаловать в GeoGame!</h1>
-{% if user.is_authenticated %}
-    <p>Привет, {{ user.username }}!</p>
-    <form method="post" action="{% url 'online_matchmaking' %}">
-        {% csrf_token %}
-        <button type="submit" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Найти соперника</button>
-    </form>
-    <a href="{% url 'solo_play' %}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px;">Играть в одиночку</a>
-    <a href="{% url 'profile' %}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px;">Профиль</a>
-    <a href="{% url 'logout' %}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background: #F44336; color: white; text-decoration: none; border-radius: 4px;">Выйти</a>
-{% else %}
-    <a href="{% url 'login' %}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px;">Войти</a>
-    <a href="{% url 'register' %}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">Регистрация</a>
-{% endif %}
+<div class="game-container" data-is-authenticated="{{ user.is_authenticated|lower }}">
+    <h1 class="game-title">Добро пожаловать в GeoGame!</h1>
+    <p class="game-description">Испытайте свои знания географии в увлекательной игре, где вы сможете соревноваться с другими игроками или играть в одиночку.</p>
 
-<div id="waitingMessage" style="display: none; margin-top: 20px; color: #333;">Ожидание соперника...</div>
+    <div class="instruction-section">
+        <h2>Как играть в GeoGame?</h2>
+        <div class="instruction-steps">
+            <div class="step">
+                <img src="{% static 'images/instructions/step1.png' %}" alt="Шаг 1: Получите изображение">
+                <p>1. Вы получаете изображение известного места.</p>
+            </div>
+            <div class="step">
+                <img src="{% static 'images/instructions/step2.png' %}" alt="Шаг 2: Отметьте на карте">
+                <p>2. На карте мира выберите точку, где, по вашему мнению, находится это место.</p>
+            </div>
+            <div class="step">
+                <img src="{% static 'images/instructions/step3.png' %}" alt="Шаг 3: Получите очки">
+                <p>3. Чем ближе вы к цели, тем больше очков вы получите!</p>
+            </div>
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+
+        <div class="centered-game-actions">
+            <form method="post" action="{% url 'online_matchmaking' %}" class="action-form">
+                {% csrf_token %}
+                <button type="submit" class="game-button">
+                    <i class="fas fa-users"></i>
+                    Найти соперника
+                </button>
+            </form>
+
+            <a href="{% url 'solo_play' %}" class="game-button">
+                <i class="fas fa-gamepad"></i>
+                Играть в одиночку
+            </a>
+        </div>
+    {% else %}
+        <div class="centered-game-actions">
+            <a href="{% url 'login' %}" class="game-button">
+                <i class="fas fa-sign-in-alt"></i>
+                Войти
+            </a>
+            <a href="{% url 'solo_play' %}" class="game-button">
+                <i class="fas fa-gamepad"></i>
+                Играть в одиночку
+            </a>
+            <a href="{% url 'register' %}" class="game-button">
+                <i class="fas fa-user-plus"></i>
+                Регистрация
+            </a>
+        </div>
+    {% endif %}
+
+    <div id="waitingMessage" class="waiting-message" style="display: none;">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Ожидание соперника...</p>
+    </div>
+</div>
+
+<style>
+.instruction-section {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.instruction-section h2 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+}
+
+.instruction-steps {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.step {
+    flex: 1;
+    min-width: 250px;
+    max-width: 300px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.step img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    border: 1px solid var(--light-gray);
+}
+
+.step p {
+    color: var(--text-color);
+    font-size: 1.1rem;
+}
+
+.centered-game-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.welcome-message {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background-color: var(--light-gray);
+    border-radius: 4px;
+}
+
+.welcome-message i {
+    font-size: 2rem;
+    color: var(--secondary-color);
+}
+
+.waiting-message {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: var(--light-gray);
+    border-radius: 4px;
+    color: var(--primary-color);
+}
+
+.waiting-message i {
+    font-size: 1.5rem;
+    color: var(--secondary-color);
+}
+
+@media (max-width: 768px) {
+    .instruction-steps {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .step {
+        width: 90%;
+    }
+
+    .centered-game-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+</style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        {% if user.is_authenticated %}
-            // WebSocket для получения уведомлений о начале боя
+        const gameContainer = document.querySelector('.game-container');
+        const isAuthenticated = gameContainer.dataset.is_authenticated === 'true';
+
+        if (isAuthenticated) {
             const matchmakingSocket = new WebSocket(
                 'ws://' + window.location.host + '/ws/matchmaking/'
             );
@@ -42,11 +189,10 @@
                 console.log('Matchmaking WebSocket closed:', e);
             };
 
-            // Показываем сообщение об ожидании после отправки формы
-            document.querySelector('form').addEventListener('submit', function() {
-                document.getElementById('waitingMessage').style.display = 'block';
+            document.querySelector('.action-form').addEventListener('submit', function() {
+                document.getElementById('waitingMessage').style.display = 'flex';
             });
-        {% endif %}
+        }
     });
 </script>
 {% endblock %}

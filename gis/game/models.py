@@ -28,6 +28,7 @@ class Landmark(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     image = models.ImageField(upload_to='landmarks/', null=True, blank=True)
+    hint_image = models.ImageField(upload_to='hints/', null=True, blank=True)
 
     def __str__(self):
         return self.name

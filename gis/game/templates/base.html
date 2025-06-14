@@ -1,25 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>{% block title %}GeoGame{% endblock %}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GeoGame - Геопространственная игра{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <nav>
-        <ul>
-            <li><a href="{% url 'index' %}">Главная</a></li>
-            <li><a href="{% url 'solo_play' %}">Играть одиночку</a></li>
-            {% if user.is_authenticated %}
-                <li><a href="{% url 'profile' %}">Профиль</a></li>
-                <li><a href="{% url 'logout' %}">Выйти</a></li>
-            {% else %}
-                <!-- Эти пункты будут показаны только для неавторизованных пользователей -->
-                <li><a href="{% url 'login' %}">Войти</a></li>
-                <li><a href="{% url 'register' %}">Регистрация</a></li>
+<body{% block body_class %}{% endblock %}>
+    <div class="background-slider">
+        <div class="background-slide active"></div>
+        <div class="background-slide"></div>
+        <div class="background-slide"></div>
+        <div class="background-slide"></div>
+        <div class="background-slide"></div>
+        <div class="background-slide"></div>
+    </div>
+
+    <header class="main-header">
+        <div class="container">
+            <nav class="main-nav">
+                <div class="logo">
+                    <a href="{% url 'index' %}">
+                        <i class="fas fa-globe-americas"></i>
+                        <span>GeoGame</span>
+                    </a>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{% url 'index' %}"><i class="fas fa-home"></i> Главная</a></li>
+                    <li><a href="{% url 'solo_play' %}"><i class="fas fa-gamepad"></i> Играть в одиночку</a></li>
+                    {% if user.is_authenticated %}
+                        <li><a href="{% url 'profile' %}"><i class="fas fa-user"></i> Профиль</a></li>
+                        <li><a href="{% url 'logout' %}" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Выйти</a></li>
+                    {% else %}
+                        <li><a href="{% url 'login' %}" class="btn-login"><i class="fas fa-sign-in-alt"></i> Войти</a></li>
+                        <li><a href="{% url 'register' %}" class="btn-register"><i class="fas fa-user-plus"></i> Регистрация</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
             {% endif %}
-        </ul>
-    </nav>
-    {% block content %}{% endblock %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>&copy; 2024 GeoGame. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const slides = document.querySelectorAll('.background-slide');
+            let currentSlide = 0;
+
+            function nextSlide() {
+                slides[currentSlide].classList.remove('active');
+                currentSlide = (currentSlide + 1) % slides.length;
+                slides[currentSlide].classList.add('active');
+            }
+
+            // Меняем слайд каждые 15 секунд
+            setInterval(nextSlide, 15000);
+        });
+    </script>
 </body>
 </html>

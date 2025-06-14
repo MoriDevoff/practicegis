@@ -1,10 +1,242 @@
 {% extends 'base.html' %}
 {% block title %}GeoGame - Регистрация{% endblock %}
 {% block content %}
-    <h1>Регистрация</h1>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Зарегистрироваться</button>
-    </form>
+<div class="auth-container">
+    <div class="auth-box">
+        <h1 class="auth-title"><i class="fas fa-user-plus"></i> Регистрация</h1>
+        <form method="post" class="auth-form" id="registrationForm">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                <div class="input-group">
+                    {{ field }}
+                    {% if 'password' in field.name %}
+                    <button type="button" class="toggle-password" onclick="togglePassword(this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <div id="{{ field.id_for_label }}_error" class="error-message"></div>
+                {% if field.help_text %}
+                <div class="help-text">
+                    {% if field.name == 'username' %}
+                        <i class="fas fa-info-circle"></i> Имя пользователя должно содержать от 3 до 30 символов. Можно использовать буквы, цифры и символы @/./+/-/_
+                    {% elif field.name == 'password1' %}
+                        <i class="fas fa-info-circle"></i> Пароль должен содержать минимум 8 символов, включая буквы и цифры
+                    {% elif field.name == 'password2' %}
+                        <i class="fas fa-info-circle"></i> Повторите пароль для подтверждения
+                    {% else %}
+                        {{ field.help_text }}
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-user-plus"></i> Зарегистрироваться
+            </button>
+        </form>
+        <div class="auth-links">
+            <p>Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 20px;
+}
+
+.auth-box {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.auth-title {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: #555;
+}
+
+.input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.input-group input:focus {
+    border-color: #4c7faf;
+    outline: none;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.toggle-password:hover {
+    color: #4c7faf;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 14px;
+    margin-top: 3px;
+    min-height: 15px;
+}
+
+.help-text {
+    color: #666;
+    font-size: 12px;
+    margin-top: 3px;
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+}
+
+.help-text i {
+    color: #4c7faf;
+    margin-top: 2px;
+}
+
+.btn-block {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    margin-top: 5px;
+}
+
+.auth-links {
+    text-align: center;
+    margin-top: 15px;
+}
+
+.auth-links a {
+    color: #4c7faf;
+    text-decoration: none;
+}
+
+.auth-links a:hover {
+    text-decoration: underline;
+}
+</style>
+
+<script>
+function togglePassword(button) {
+    const input = button.parentElement.querySelector('input');
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registrationForm');
+    const fields = form.querySelectorAll('input[name="username"], input[name="email"], input[name="password"], input[name="password2"]');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fields.forEach(field => {
+        field.addEventListener('input', debounce(function() {
+            validateField(field.name, field.value);
+        }, 500));
+    });
+
+    function validateField(fieldName, fieldValue) {
+        const errorDiv = document.getElementById(fieldName + '_error');
+        errorDiv.innerHTML = '';
+
+        if (fieldValue.trim() === '') {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('field_name', fieldName);
+        formData.append('field_value', fieldValue);
+        formData.append('csrfmiddlewaretoken', csrfToken);
+
+        if (fieldName === 'password' || fieldName === 'password2') {
+            const passwordInput = document.querySelector('input[name="password"]');
+            const password2Input = document.querySelector('input[name="password2"]');
+            if (passwordInput) formData.append('password', passwordInput.value);
+            if (password2Input) formData.append('password2', password2Input.value);
+        }
+
+        fetch('{% url "validate_field" %}', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.errors && data.errors.length > 0) {
+                let errorHtml = '';
+                data.errors.forEach(error => {
+                    errorHtml += `<i class="fas fa-exclamation-circle"></i> ${error}<br>`;
+                });
+                errorDiv.innerHTML = errorHtml;
+            }
+        })
+        .catch(error => console.error('Ошибка валидации:', error));
+    }
+
+    function debounce(func, delay) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), delay);
+        };
+    }
+});
+</script>
 {% endblock %}

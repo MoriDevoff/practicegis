@@ -17,6 +17,9 @@ import logging
 import random
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.core.exceptions import ValidationError
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -84,6 +87,7 @@ def solo_play(request):
         'map_center_lon': map_center[1],
         'correct_lat': landmark.latitude,
         'correct_lon': landmark.longitude,
+        'hint_image_url': landmark.hint_image.url if landmark.hint_image else None,
     }
     return render(request, 'game/solo_play.html', context)
 
@@ -100,7 +104,7 @@ def calculate_score(request):
             lat2, lon2 = landmark.latitude, landmark.longitude
 
             distance = math.sqrt((lat1 - lat2) ** 2 + (lon1 - lon2) ** 2) * 100
-            score = max(0, 100 - int(distance))
+            score = max(0, 1000 - int(distance * 5))
 
             if battle_id:
                 battle = Battle.objects.get(id=battle_id)
@@ -138,7 +142,11 @@ def calculate_score(request):
                     'user': user.username
                 })
             else:
-                return JsonResponse({'score': score})
+                return JsonResponse({
+                    'score': score,
+                    'correct_lat': landmark.latitude,
+                    'correct_lon': landmark.longitude
+                })
 
         except (ValueError, Landmark.DoesNotExist, Battle.DoesNotExist) as e:
             logger.error(f"Error in calculate_score: {str(e)}")
@@ -198,6 +206,13 @@ def battle_detail(request, battle_id):
 
     m = folium.Map(location=[battle.landmark.latitude, battle.landmark.longitude], zoom_start=10, tiles='OpenStreetMap')
     m.add_child(folium.LatLngPopup())
+
+    # Добавляем маркер для правильного места (зеленый)
+    folium.Marker(
+        [battle.landmark.latitude, battle.landmark.longitude],
+        popup='Правильное место',
+        icon=folium.Icon(color='green')
+    ).add_to(m)
 
     # Добавляем метки, если координаты доступны
     if battle.player1_lat and battle.player1_lon and battle.player1_score:
@@ -313,3 +328,34 @@ def check_matchmaking(request):
             logger.info(f"Removed non-existent battle {battle_id} from active_battles")
 
     return JsonResponse({})
+
+def validate_field(request):
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        field_name = request.POST.get('field_name')
+        field_value = request.POST.get('field_value')
+
+        form = UserCreationForm({field_name: field_value}) # Использовать базовую UserCreationForm для частичной валидации
+        form.is_valid() # Запустить валидацию
+
+        errors = []
+        if field_name in form.errors:
+            for error in form.errors[field_name]:
+                errors.append(error)
+        
+        # Специальная обработка для уникальности имени пользователя и email
+        if field_name == 'username':
+            if User.objects.filter(username=field_value).exists():
+                errors.append('Это имя пользователя уже занято.')
+        elif field_name == 'email':
+            if User.objects.filter(email=field_value).exists():
+                errors.append('Этот email уже зарегистрирован.')
+
+        # Обработка для PasswordMismatch при изменении одного из полей пароля
+        if field_name in ['password', 'password2']:
+            password = request.POST.get('password')
+            password2 = request.POST.get('password2')
+            if password and password2 and password != password2:
+                errors.append('Пароли не совпадают.')
+
+        return JsonResponse({'errors': errors})
+    return JsonResponse({'error': 'Метод не поддерживается'}, status=400)

@@ -1,17 +1,172 @@
 {% extends 'base.html' %}
 {% block title %}GeoGame - Профиль{% endblock %}
 {% block content %}
-<h1>Профиль {{ user.username }}</h1>
-<p>Ваши сражения:</p>
-<ul>
-    {% for battle in battles %}
-        <li><a href="{% url 'battle_detail' battle.id %}">{{ battle }}</a></li>
-    {% empty %}
-        <li>У вас нет сражений.</li>
-    {% endfor %}
-</ul>
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            <i class="fas fa-user-circle"></i>
+        </div>
+        <h1 class="profile-username">{{ user.username }}</h1>
+    </div>
 
-<div style="margin-top: 20px;">
-    <a href="{% url 'solo_play' %}" class="btn" style="display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">Одиночная игра</a>
+    <div class="profile-content">
+        <div class="profile-section">
+            <h2><i class="fas fa-history"></i> История сражений</h2>
+            <div class="battles-list">
+                {% for battle in battles %}
+                <div class="battle-card">
+                    <div class="battle-info">
+                        <h3>{{ battle }}</h3>
+                        <p class="battle-date">{{ battle.created_at|date:"d.m.Y H:i" }}</p>
+                    </div>
+                    <a href="{% url 'battle_detail' battle.id %}" class="btn btn-view">
+                        <i class="fas fa-eye"></i> Подробнее
+                    </a>
+                </div>
+                {% empty %}
+                <div class="no-battles">
+                    <i class="fas fa-gamepad"></i>
+                    <p>У вас пока нет сражений</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="profile-actions">
+            <a href="{% url 'solo_play' %}" class="btn btn-primary btn-large">
+                <i class="fas fa-gamepad"></i> Начать одиночную игру
+            </a>
+        </div>
+    </div>
 </div>
+
+<style>
+.profile-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.profile-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.profile-avatar {
+    font-size: 80px;
+    color: #4c7faf;
+    margin-bottom: 20px;
+}
+
+.profile-username {
+    font-size: 32px;
+    color: #333;
+    margin: 0;
+}
+
+.profile-content {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+}
+
+.profile-section {
+    margin-bottom: 30px;
+}
+
+.profile-section h2 {
+    color: #333;
+    font-size: 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.battles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.battle-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.battle-card:hover {
+    transform: translateX(5px);
+}
+
+.battle-info h3 {
+    margin: 0;
+    color: #333;
+    font-size: 18px;
+}
+
+.battle-date {
+    color: #666;
+    font-size: 14px;
+    margin: 5px 0 0;
+}
+
+.btn-view {
+    padding: 8px 15px;
+    background: #4c7faf;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background-color 0.2s;
+}
+
+.btn-view:hover {
+    background: #4c7faf;
+}
+
+.no-battles {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.no-battles i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #4c7faf;
+}
+
+.profile-actions {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.btn-large {
+    padding: 15px 30px;
+    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-primary {
+    background: #4c7faf;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+    background: #4c7faf;
+}
+</style>
 {% endblock %}

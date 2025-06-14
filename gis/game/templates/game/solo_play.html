@@ -1,41 +1,81 @@
 {% extends 'base.html' %}
+{% load static %}
+{% block body_class %} class="game-page"{% endblock %}
 {% block title %}GeoGame - Одиночная игра{% endblock %}
 {% block content %}
-<h1>Одиночная игра</h1>
-{% if error %}
-    <p>{{ error }}</p>
-{% else %}
-    <h2>Достопримечательность: {{ landmark.name }}</h2>
-    {% if landmark.image %}
-        <img src="{{ landmark.image.url }}" alt="{{ landmark.name }}" style="max-width: 300px;">
+<div class="game-play-container" data-hint-image-url="{{ hint_image_url|default:'' }}">
+    {% if error %}
+        <p class="alert alert-error">{{ error }}</p>
+    {% else %}
+        <div class="game-columns">
+            <div class="left-column game-card">
+                <h2 class="landmark-title">Достопримечательность: {{ landmark.name }}</h2>
+                {% if landmark.image %}
+                    <div class="landmark-image-container">
+                        <img src="{{ landmark.image.url }}" alt="{{ landmark.name }}" class="landmark-main-image">
+                    </div>
+                {% endif %}
+                <div class="game-controls">
+                    <button type="button" id="confirmBtn" class="game-button">
+                        <i class="fas fa-check-circle"></i> Подтвердить
+                    </button>
+                    <button type="button" id="hintBtn" class="game-button">
+                        <i class="fas fa-lightbulb"></i> Подсказка
+                    </button>
+                    <button type="button" id="nextBtn" class="game-button" style="display: none;">
+                        <i class="fas fa-arrow-right"></i> Далее
+                    </button>
+                </div>
+                <div id="hintImageContainer" class="hint-image-container" style="display: none;">
+                    <img id="actualHintImage" src="" alt="Подсказка" class="hint-image">
+                    <p id="noHintMessage" style="display: none;">Подсказка недоступна.</p>
+                </div>
+                <div id="scoreDisplay" class="score-display" style="display: none;">
+                    <h3>Ваш результат:</h3>
+                    <p id="currentScore"></p>
+                    <p id="correctLocation"></p>
+                </div>
+            </div>
+            <div class="right-column game-card">
+                <div id="map" class="game-map"></div>
+            </div>
+        </div>
+
+        <form id="scoreForm" method="post" action="{% url 'calculate_score' %}">
+            {% csrf_token %}
+            <input type="hidden" name="lat" id="lat">
+            <input type="hidden" name="lon" id="lon">
+            <input type="hidden" name="landmark_id" value="{{ landmark.id }}">
+        </form>
     {% endif %}
-
-    <div id="map" style="height: 500px;"></div>
-
-    <form id="scoreForm" method="post" action="{% url 'calculate_score' %}">
-        {% csrf_token %}
-        <input type="hidden" name="lat" id="lat">
-        <input type="hidden" name="lon" id="lon">
-        <input type="hidden" name="landmark_id" value="{{ landmark.id }}">
-        <button type="button" id="confirmBtn" class="btn" style="margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Подтвердить</button>
-    </form>
-
-    <div id="resultModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 1000; text-align: center; width: 300px;">
-        <h3 style="margin-top: 0;">Результат игры</h3>
-        <p id="scoreResult" style="font-size: 18px; margin: 20px 0;"></p>
-        <a href="{% url 'index' %}" class="btn" style="display: inline-block; padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px;">На главную</a>
-    </div>
-    <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;"></div>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var map = L.map('map').setView([{{ map_center_lat }}, {{ map_center_lon }}], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '' // Remove Leaflet <attribution></attribution>
+            }).addTo(map);
 
             var userMarker = null;
             var confirmed = false;
+            var correctMarker = null; // To store the correct location marker
+            var userLine = null; // To store the line from user guess to correct location
+
+            const hintBtn = document.getElementById('hintBtn');
+            const hintImageContainer = document.getElementById('hintImageContainer');
+            const actualHintImage = document.getElementById('actualHintImage');
+            const noHintMessage = document.getElementById('noHintMessage');
+            const gamePlayContainer = document.querySelector('.game-play-container');
+            const hintImageUrl = gamePlayContainer.dataset.hintImageUrl;
+
+            if (hintImageUrl) {
+                actualHintImage.src = hintImageUrl;
+            } else {
+                hintBtn.disabled = true;
+            }
 
             map.on('click', function(e) {
                 if (confirmed) return;
@@ -71,13 +111,12 @@
                 .then(data => {
                     if (data.score !== undefined) {
                         confirmed = true;
-                        document.getElementById('scoreResult').innerText =
-                            'Вы набрали: ' + data.score + ' очков';
-                        document.getElementById('resultModal').style.display = 'block';
-                        document.getElementById('overlay').style.display = 'block';
+                        document.getElementById('currentScore').innerText = 'Вы набрали: ' + data.score + ' очков';
+                        document.getElementById('correctLocation').innerHTML = `Правильное место: <a href="https://www.google.com/maps/search/?api=1&query=${data.correct_lat},${data.correct_lon}" target="_blank">(${data.correct_lat}, ${data.correct_lon})</a>`;
+                        document.getElementById('scoreDisplay').style.display = 'block';
 
                         // Показываем правильный ответ
-                        L.marker([{{ landmark.latitude }}, {{ landmark.longitude }}], {
+                        correctMarker = L.marker([data.correct_lat, data.correct_lon], {
                             icon: L.icon({
                                 iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-red.png',
                                 iconSize: [25, 41],
@@ -85,10 +124,37 @@
                                 popupAnchor: [1, -34]
                             })
                         }).addTo(map).bindPopup('Правильное место').openPopup();
+
+                        // Draw dashed line
+                        userLine = L.polyline([
+                            userMarker.getLatLng(),
+                            correctMarker.getLatLng()
+                        ], { color: 'blue', weight: 3, opacity: 0.7, dashArray: '5, 10' }).addTo(map);
+
+                        // Hide confirm button, show next button
+                        document.getElementById('confirmBtn').style.display = 'none';
+                        document.getElementById('hintBtn').style.display = 'none'; // Hide hint button as well
+                        document.getElementById('nextBtn').style.display = 'inline-block';
                     }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ошибка при расчёте очков.');
                 });
+            });
+
+            document.getElementById('nextBtn').addEventListener('click', function() {
+                window.location.href = '{% url "solo_play" %}'; // Redirect to reload the page with a new landmark
+            });
+
+            hintBtn.addEventListener('click', function() {
+                if (hintImageUrl) {
+                    hintImageContainer.style.display = 'block';
+                    hintBtn.disabled = true; // Disable hint button after use
+                } else {
+                    noHintMessage.style.display = 'block';
+                }
             });
         });
     </script>
-{% endif %}
 {% endblock %}
