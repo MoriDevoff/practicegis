@@ -203,6 +203,17 @@ body {
     box-shadow: var(--button-hover-shadow);
 }
 
+.btn-profile {
+    background-color: var(--primary-color);
+    color: var(--white) !important;
+    box-shadow: var(--button-shadow);
+}
+
+.btn-profile:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--button-hover-shadow);
+}
+
 /* Main Content */
 .main-content {
     flex: 1;

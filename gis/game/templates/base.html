@@ -30,9 +30,9 @@
                 </div>
                 <ul class="nav-links">
                     <li><a href="{% url 'index' %}"><i class="fas fa-home"></i> Главная</a></li>
-                    <li><a href="{% url 'solo_play' %}"><i class="fas fa-gamepad"></i> Играть в одиночку</a></li>
+                    <li><a href="{% url 'solo_play' %}"><i class="fas fa-gamepad"></i> Играть</a></li>
                     {% if user.is_authenticated %}
-                        <li><a href="{% url 'profile' %}"><i class="fas fa-user"></i> Профиль</a></li>
+                        <li><a href="{% url 'profile' %}" class="btn-profile"><i class="fas fa-user"></i> Профиль</a></li>
                         <li><a href="{% url 'logout' %}" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Выйти</a></li>
                     {% else %}
                         <li><a href="{% url 'login' %}" class="btn-login"><i class="fas fa-sign-in-alt"></i> Войти</a></li>

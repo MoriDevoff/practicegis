@@ -1,172 +1,180 @@
 {% extends 'base.html' %}
-{% block title %}GeoGame - Профиль{% endblock %}
+{% load static %}
+
+{% block title %}Профиль - {{ user.username }}{% endblock %}
+
 {% block content %}
 <div class="profile-container">
     <div class="profile-header">
-        <div class="profile-avatar">
+        <h1>Профиль игрока</h1>
+        <div class="user-info">
             <i class="fas fa-user-circle"></i>
+            <h2>{{ user.username }}</h2>
         </div>
-        <h1 class="profile-username">{{ user.username }}</h1>
     </div>
 
-    <div class="profile-content">
-        <div class="profile-section">
-            <h2><i class="fas fa-history"></i> История сражений</h2>
-            <div class="battles-list">
-                {% for battle in battles %}
-                <div class="battle-card">
-                    <div class="battle-info">
-                        <h3>{{ battle }}</h3>
-                        <p class="battle-date">{{ battle.created_at|date:"d.m.Y H:i" }}</p>
+    <div class="stats-container">
+        <div class="stat-card">
+            <i class="fas fa-gamepad"></i>
+            <h3>Всего игр</h3>
+            <p>{{ total_games }}</p>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-star"></i>
+            <h3>Средний счет</h3>
+            <p>{{ average_score }}</p>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-trophy"></i>
+            <h3>Лучший счет</h3>
+            <p>{{ best_score }}</p>
+        </div>
+    </div>
+
+    <div class="recent-games">
+        <h2>Последние игры</h2>
+        {% if recent_games %}
+            <div class="games-list">
+                {% for game in recent_games %}
+                    <div class="game-card">
+                        <div class="game-info">
+                            <h3>{{ game.landmark.name }}</h3>
+                            <p class="game-date">{{ game.created_at|date:"d.m.Y H:i" }}</p>
+                        </div>
+                        <div class="game-score">
+                            <span>{{ game.score }}</span>
+                            <small>очков</small>
+                        </div>
                     </div>
-                    <a href="{% url 'battle_detail' battle.id %}" class="btn btn-view">
-                        <i class="fas fa-eye"></i> Подробнее
-                    </a>
-                </div>
-                {% empty %}
-                <div class="no-battles">
-                    <i class="fas fa-gamepad"></i>
-                    <p>У вас пока нет сражений</p>
-                </div>
                 {% endfor %}
             </div>
-        </div>
-
-        <div class="profile-actions">
-            <a href="{% url 'solo_play' %}" class="btn btn-primary btn-large">
-                <i class="fas fa-gamepad"></i> Начать одиночную игру
-            </a>
-        </div>
+        {% else %}
+            <p class="no-games">У вас пока нет сыгранных игр</p>
+        {% endif %}
     </div>
 </div>
 
 <style>
 .profile-container {
     max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
+    margin: 2rem auto;
+    padding: 0 1rem;
 }
 
 .profile-header {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 2rem;
 }
 
-.profile-avatar {
-    font-size: 80px;
-    color: #4c7faf;
-    margin-bottom: 20px;
+.user-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
 }
 
-.profile-username {
-    font-size: 32px;
-    color: #333;
+.user-info i {
+    font-size: 3rem;
+    color: var(--primary-color);
+}
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.stat-card i {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-card h3 {
+    margin: 0.5rem 0;
+    color: var(--text-color);
+}
+
+.stat-card p {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
     margin: 0;
 }
 
-.profile-content {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-    padding: 30px;
+.recent-games {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
 }
 
-.profile-section {
-    margin-bottom: 30px;
+.recent-games h2 {
+    margin-bottom: 1rem;
+    color: var(--text-color);
 }
 
-.profile-section h2 {
-    color: #333;
-    font-size: 24px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.battles-list {
+.games-list {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 1rem;
 }
 
-.battle-card {
+.game-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    transition: transform 0.2s;
+    padding: 1rem;
+    background: var(--light-gray);
+    border-radius: 4px;
 }
 
-.battle-card:hover {
-    transform: translateX(5px);
-}
-
-.battle-info h3 {
+.game-info h3 {
     margin: 0;
-    color: #333;
-    font-size: 18px;
+    color: var(--text-color);
 }
 
-.battle-date {
-    color: #666;
-    font-size: 14px;
-    margin: 5px 0 0;
+.game-date {
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    margin: 0.25rem 0 0;
 }
 
-.btn-view {
-    padding: 8px 15px;
-    background: #4c7faf;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: background-color 0.2s;
+.game-score {
+    text-align: right;
 }
 
-.btn-view:hover {
-    background: #4c7faf;
+.game-score span {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
 }
 
-.no-battles {
+.game-score small {
+    color: var(--secondary-color);
+    display: block;
+}
+
+.no-games {
     text-align: center;
-    padding: 40px;
-    color: #666;
+    color: var(--secondary-color);
+    padding: 2rem;
 }
 
-.no-battles i {
-    font-size: 48px;
-    margin-bottom: 15px;
-    color: #4c7faf;
-}
-
-.profile-actions {
-    text-align: center;
-    margin-top: 30px;
-}
-
-.btn-large {
-    padding: 15px 30px;
-    font-size: 18px;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.btn-primary {
-    background: #4c7faf;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    transition: background-color 0.2s;
-}
-
-.btn-primary:hover {
-    background: #4c7faf;
+@media (max-width: 600px) {
+    .stats-container {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 {% endblock %}

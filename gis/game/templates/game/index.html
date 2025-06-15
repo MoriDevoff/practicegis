@@ -2,9 +2,9 @@
 {% load static %}
 {% block title %}GeoGame - Главная{% endblock %}
 {% block content %}
-<div class="game-container" data-is-authenticated="{{ user.is_authenticated|lower }}">
+<div class="game-container">
     <h1 class="game-title">Добро пожаловать в GeoGame!</h1>
-    <p class="game-description">Испытайте свои знания географии в увлекательной игре, где вы сможете соревноваться с другими игроками или играть в одиночку.</p>
+    <p class="game-description">Испытайте свои знания географии в увлекательной игре, где вы сможете проверить свои знания о достопримечательностях мира.</p>
 
     <div class="instruction-section">
         <h2>Как играть в GeoGame?</h2>
@@ -24,46 +24,30 @@
         </div>
     </div>
 
-    {% if user.is_authenticated %}
-
-        <div class="centered-game-actions">
-            <form method="post" action="{% url 'online_matchmaking' %}" class="action-form">
-                {% csrf_token %}
-                <button type="submit" class="game-button">
-                    <i class="fas fa-users"></i>
-                    Найти соперника
-                </button>
-            </form>
-
+    <div class="centered-game-actions">
+        {% if user.is_authenticated %}
             <a href="{% url 'solo_play' %}" class="game-button">
                 <i class="fas fa-gamepad"></i>
-                Играть в одиночку
+                Играть
             </a>
-        </div>
-    {% else %}
-        <div class="centered-game-actions">
+            <a href="{% url 'logout' %}" class="game-button">
+                <i class="fas fa-sign-out-alt"></i>
+                Выйти
+            </a>
+        {% else %}
             <a href="{% url 'login' %}" class="game-button">
                 <i class="fas fa-sign-in-alt"></i>
                 Войти
             </a>
             <a href="{% url 'solo_play' %}" class="game-button">
                 <i class="fas fa-gamepad"></i>
-                Играть в одиночку
+                Играть
             </a>
             <a href="{% url 'register' %}" class="game-button">
                 <i class="fas fa-user-plus"></i>
                 Регистрация
             </a>
-        </div>
-    {% endif %}
-
-    <div id="waitingMessage" class="waiting-message" style="display: none;">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Ожидание соперника...</p>
-    </div>
-
-    <div id="battleReadyContainer" style="display:none; text-align:center; margin-top:20px;">
-        <a id="battleReadyBtn" href="#" class="game-button" style="background:#2196F3; color:white;">Перейти к сражению</a>
+        {% endif %}
     </div>
 </div>
 
@@ -119,37 +103,6 @@
     flex-wrap: wrap;
 }
 
-.welcome-message {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
-    padding: 1rem;
-    background-color: var(--light-gray);
-    border-radius: 4px;
-}
-
-.welcome-message i {
-    font-size: 2rem;
-    color: var(--secondary-color);
-}
-
-.waiting-message {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 2rem;
-    padding: 1rem;
-    background-color: var(--light-gray);
-    border-radius: 4px;
-    color: var(--primary-color);
-}
-
-.waiting-message i {
-    font-size: 1.5rem;
-    color: var(--secondary-color);
-}
-
 @media (max-width: 768px) {
     .instruction-steps {
         flex-direction: column;
@@ -166,20 +119,4 @@
     }
 }
 </style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const gameContainer = document.querySelector('.game-container');
-        const isAuthenticated = gameContainer.dataset.is_authenticated === 'true';
-        const waitingMessage = document.getElementById('waitingMessage');
-
-        if (isAuthenticated) {
-            document.querySelector('.action-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-                waitingMessage.style.display = 'flex';
-                this.submit();
-            });
-        }
-    });
-</script>
 {% endblock %}
