@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from .models import Landmark, SoloGame
 import logging
 from django.db import models
+from django.contrib.auth.models import User
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -127,3 +128,30 @@ def logout_view(request):
     logout(request)
     messages.success(request, 'Вы вышли из аккаунта.')
     return redirect('index')
+
+def validate_field(request):
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        field_name = request.POST.get('field_name')
+        field_value = request.POST.get('field_value')
+        errors = []
+
+        if field_name == 'username':
+            if len(field_value) < 3:
+                errors.append('Имя пользователя должно содержать минимум 3 символа')
+            if User.objects.filter(username=field_value).exists():
+                errors.append('Это имя пользователя уже занято')
+        elif field_name == 'email':
+            if not '@' in field_value or not '.' in field_value:
+                errors.append('Введите корректный email адрес')
+            if User.objects.filter(email=field_value).exists():
+                errors.append('Этот email уже зарегистрирован')
+        elif field_name in ['password', 'password2']:
+            password = request.POST.get('password', '')
+            password2 = request.POST.get('password2', '')
+            if field_name == 'password' and len(password) < 8:
+                errors.append('Пароль должен содержать минимум 8 символов')
+            if field_name == 'password2' and password != password2:
+                errors.append('Пароли не совпадают')
+
+        return JsonResponse({'errors': errors})
+    return JsonResponse({'error': 'Метод не поддерживается'}, status=400)

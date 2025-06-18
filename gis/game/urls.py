@@ -13,4 +13,5 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('login/', views.login_view, name='login'),
     path('register/', views.register, name='register'),
+    path('validate_field/', views.validate_field, name='validate_field'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
