@@ -25,9 +25,9 @@ def solo_play(request):
 
     landmark = random.choice(landmarks)
 
-    # Создаем карту с центром в случайном месте (далеко от правильного ответа)
-    offset_lat = random.uniform(-20, 20)
-    offset_lon = random.uniform(-20, 20)
+    # Центрируем карту ближе к правильному месту (случайное смещение не более 5 градусов)
+    offset_lat = random.uniform(-5, 5)
+    offset_lon = random.uniform(-5, 5)
     map_center = [landmark.latitude + offset_lat, landmark.longitude + offset_lon]
 
     context = {
@@ -51,8 +51,36 @@ def calculate_score(request):
             lat1, lon1 = float(lat), float(lon)
             lat2, lon2 = landmark.latitude, landmark.longitude
 
-            distance = math.sqrt((lat1 - lat2) ** 2 + (lon1 - lon2) ** 2) * 100
-            score = max(0, 1000 - int(distance * 5))
+            # Используем геодезическое расстояние (Haversine formula)
+            def haversine(lat1, lon1, lat2, lon2):
+                from math import radians, sin, cos, sqrt, atan2
+                R = 6371  # Earth radius in km
+                dlat = radians(lat2 - lat1)
+                dlon = radians(lon2 - lon1)
+                a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+                c = 2 * atan2(sqrt(a), sqrt(1 - a))
+                return R * c
+
+            distance_km = haversine(lat1, lon1, lat2, lon2)
+
+            # Новая система начисления очков: более плавная и дружелюбная для городских расстояний
+            if distance_km < 1:
+                score = 1000
+            elif distance_km < 5:
+                score = int(900 + (1000 - 900) * (5 - distance_km) / 4)
+            elif distance_km < 15:
+                score = int(800 + (900 - 800) * (15 - distance_km) / 10)
+            elif distance_km < 30:
+                score = int(700 + (800 - 700) * (30 - distance_km) / 15)
+            elif distance_km < 50:
+                score = int(600 + (700 - 600) * (50 - distance_km) / 20)
+            elif distance_km < 100:
+                score = int(500 + (600 - 500) * (100 - distance_km) / 50)
+            elif distance_km < 1000:
+                score = int(500 * (1000 - distance_km) / 900)
+            else:
+                score = 0
+            score = max(0, score)
 
             # Сохраняем результат игры, если пользователь авторизован
             if request.user.is_authenticated:

@@ -53,10 +53,18 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var map = L.map('map').setView([{{ map_center_lat }}, {{ map_center_lon }}], 2);
+            // Ограничиваем карту только одной планетой
+            var worldBounds = L.latLngBounds([[-85, -180], [85, 180]]);
+            var map = L.map('map', {
+                maxBounds: worldBounds,
+                maxBoundsViscosity: 1.0,
+                worldCopyJump: false
+            });
+            map.setView([{{ map_center_lat }}, {{ map_center_lon }}], 2);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
-                attribution: '' // Remove Leaflet <attribution></attribution>
+                attribution: '',
+                noWrap: true
             }).addTo(map);
 
             var userMarker = null;
