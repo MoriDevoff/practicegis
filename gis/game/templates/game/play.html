@@ -6,7 +6,9 @@
            <p>{{ error }}</p>
        {% else %}
            <h1>Угадайте место!</h1>
-           <img src="{% static landmark.image %}" alt="{{ landmark.name }}" class="landmark-image">
+           <div class="landmark-image-container">
+               <img src="{% static landmark.image %}" alt="{{ landmark.name }}" class="landmark-main-image">
+           </div>
            <div id="map">{{ map_html|safe }}</div>
            <button id="submit-guess">Поставить метку</button>
            <div id="result"></div>

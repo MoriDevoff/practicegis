@@ -467,19 +467,28 @@ body.game-page .container {
     border-radius: 2px;
 }
 
-.landmark-image-container {
+.landmark-image-container, .hint-image-container {
     width: 100%;
     max-width: 400px;
+    height: 300px;
     margin-bottom: 1.5rem;
     border-radius: 8px;
-    overflow: hidden;
     box-shadow: var(--shadow);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* overflow: hidden; убрано, чтобы не обрезать изображение */
 }
 
 .landmark-main-image, .hint-image {
-    width: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
     height: auto;
     display: block;
+    object-fit: contain;
+    background: #f5f6fa;
 }
 
 .game-controls {
@@ -488,16 +497,6 @@ body.game-page .container {
     margin-top: 1.5rem;
     flex-wrap: wrap;
     justify-content: center;
-}
-
-.hint-image-container {
-    margin-top: 1.5rem;
-    width: 100%;
-    max-width: 400px;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--secondary-color);
 }
 
 .score-display {
@@ -571,4 +570,8 @@ body.game-page .container {
 
 .leaflet-control-attribution {
     display: none;
+}
+
+.hint-image-container {
+    margin-top: 2.5rem;
 }
