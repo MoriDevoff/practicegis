@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoGame - Статическая версия</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .landmark-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .landmark-info h2 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .landmark-info p {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+
+        .hint-image {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin: 0 auto;
+            display: block;
+        }
+
+        #map {
+            height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(149, 165, 166, 0.4);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+
+        .score-display {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+        }
+
+        .score-display h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .score-display .score {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #27ae60;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+
+        .instructions h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .instructions li::before {
+            content: "📍";
+            position: absolute;
+            left: 0;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            opacity: 0.8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .game-container {
+                padding: 20px;
+            }
+            
+            #map {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 GeoGame</h1>
+            <p>Географическая игра - угадайте местоположение достопримечательности!</p>
+        </div>
+
+        <div class="game-container">
+            <div class="instructions">
+                <h3>Как играть:</h3>
+                <ul>
+                    <li>Посмотрите на изображение достопримечательности</li>
+                    <li>Нажмите на карту в том месте, где, по вашему мнению, находится этот объект</li>
+                    <li>Чем точнее ваш ответ, тем больше очков вы получите!</li>
+                </ul>
+            </div>
+
+            <div id="loading" class="loading">
+                <p>Загрузка игры...</p>
+            </div>
+
+            <div id="game-content" style="display: none;">
+                <div class="landmark-info">
+                    <h2 id="landmark-name">Достопримечательность</h2>
+                    <p>Найдите это место на карте!</p>
+                    <img id="hint-image" class="hint-image" src="" alt="Подсказка">
+                </div>
+
+                <div id="map"></div>
+
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="newGame()">Новая игра</button>
+                    <button class="btn btn-secondary" onclick="showAnswer()">Показать ответ</button>
+                    <button class="btn btn-success" onclick="submitGuess()">Проверить ответ</button>
+                </div>
+
+                <div id="score-display" class="score-display" style="display: none;">
+                    <h3>Ваш результат:</h3>
+                    <div class="score" id="score">0</div>
+                    <p id="score-message"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Создано с ❤️ для изучения географии | <a href="https://github.com" style="color: white;">GitHub</a></p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Данные достопримечательностей
+        const landmarks = [
+            {
+                name: "Эйфелева башня",
+                lat: 48.8584,
+                lng: 2.2945,
+                hint: "https://images.unsplash.com/photo-1549144511-f099e773c147?w=300&h=200&fit=crop",
+                description: "Знаменитая железная башня в Париже"
+            },
+            {
+                name: "Статуя Свободы",
+                lat: 40.6892,
+                lng: -74.0445,
+                hint: "https://images.unsplash.com/photo-1539650116574-75c0c6d73c6e?w=300&h=200&fit=crop",
+                description: "Символ свободы в Нью-Йорке"
+            },
+            {
+                name: "Тадж-Махал",
+                lat: 27.1751,
+                lng: 78.0421,
+                hint: "https://images.unsplash.com/photo-1564507592333-c60657eea523?w=300&h=200&fit=crop",
+                description: "Беломраморный мавзолей в Индии"
+            },
+            {
+                name: "Колизей",
+                lat: 41.8902,
+                lng: 12.4922,
+                hint: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=300&h=200&fit=crop",
+                description: "Древнеримский амфитеатр"
+            },
+            {
+                name: "Пирамиды Гизы",
+                lat: 29.9792,
+                lng: 31.1342,
+                hint: "https://images.unsplash.com/photo-1539650116574-75c0c6d73c6e?w=300&h=200&fit=crop",
+                description: "Древние египетские пирамиды"
+            },
+            {
+                name: "Московский Кремль",
+                lat: 55.7520,
+                lng: 37.6175,
+                hint: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=200&fit=crop",
+                description: "Историческая крепость в центре Москвы"
+            },
+            {
+                name: "Опера в Сиднее",
+                lat: -33.8568,
+                lng: 151.2153,
+                hint: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=200&fit=crop",
+                description: "Знаменитый оперный театр в Австралии"
+            },
+            {
+                name: "Мачу-Пикчу",
+                lat: -13.1631,
+                lng: -72.5450,
+                hint: "https://images.unsplash.com/photo-1526392060635-9d6019884377?w=300&h=200&fit=crop",
+                description: "Древний город инков в Перу"
+            },
+            {
+                name: "Биг-Бен",
+                lat: 51.4994,
+                lng: -0.1245,
+                hint: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=200&fit=crop",
+                description: "Знаменитая башня с часами в Лондоне"
+            },
+            {
+                name: "Храм Неба",
+                lat: 39.8823,
+                lng: 116.4066,
+                hint: "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=300&h=200&fit=crop",
+                description: "Древний храмовый комплекс в Пекине"
+            }
+        ];
+
+        let map;
+        let currentLandmark;
+        let playerMarker;
+        let correctMarker;
+        let gameActive = true;
+
+        // Инициализация игры
+        function initGame() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('game-content').style.display = 'block';
+            
+            // Выбираем случайную достопримечательность
+            currentLandmark = landmarks[Math.floor(Math.random() * landmarks.length)];
+            
+            // Обновляем информацию о достопримечательности
+            document.getElementById('landmark-name').textContent = currentLandmark.name;
+            document.getElementById('hint-image').src = currentLandmark.hint;
+            document.getElementById('hint-image').alt = currentLandmark.description;
+            
+            // Инициализируем карту
+            initMap();
+            
+            // Скрываем результаты предыдущей игры
+            document.getElementById('score-display').style.display = 'none';
+        }
+
+        // Инициализация карты
+        function initMap() {
+            // Центрируем карту с небольшим смещением от правильного места
+            const offsetLat = (Math.random() - 0.5) * 10;
+            const offsetLng = (Math.random() - 0.5) * 10;
+            const mapCenter = [currentLandmark.lat + offsetLat, currentLandmark.lng + offsetLng];
+            
+            map = L.map('map').setView(mapCenter, 3);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Добавляем обработчик клика
+            map.on('click', function(e) {
+                if (gameActive) {
+                    placePlayerMarker(e.latlng.lat, e.latlng.lng);
+                }
+            });
+            
+            gameActive = true;
+        }
+
+        // Размещение маркера игрока
+        function placePlayerMarker(lat, lng) {
+            if (playerMarker) {
+                map.removeLayer(playerMarker);
+            }
+            
+            playerMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'player-marker',
+                    html: '<div style="background-color: #e74c3c; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            }).addTo(map);
+        }
+
+        // Показать правильный ответ
+        function showAnswer() {
+            if (correctMarker) {
+                map.removeLayer(correctMarker);
+            }
+            
+            correctMarker = L.marker([currentLandmark.lat, currentLandmark.lng], {
+                icon: L.divIcon({
+                    className: 'correct-marker',
+                    html: '<div style="background-color: #27ae60; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">✓</div>',
+                    iconSize: [25, 25],
+                    iconAnchor: [12, 12]
+                })
+            }).addTo(map);
+            
+            gameActive = false;
+        }
+
+        // Подсчет очков
+        function calculateScore(playerLat, playerLng) {
+            const distance = haversineDistance(
+                playerLat, playerLng,
+                currentLandmark.lat, currentLandmark.lng
+            );
+            
+            let score;
+            if (distance < 1) {
+                score = 1000;
+            } else if (distance < 5) {
+                score = Math.floor(900 + (1000 - 900) * (5 - distance) / 4);
+            } else if (distance < 15) {
+                score = Math.floor(800 + (900 - 800) * (15 - distance) / 10);
+            } else if (distance < 30) {
+                score = Math.floor(700 + (800 - 700) * (30 - distance) / 15);
+            } else if (distance < 50) {
+                score = Math.floor(600 + (700 - 600) * (50 - distance) / 20);
+            } else if (distance < 100) {
+                score = Math.floor(500 + (600 - 500) * (100 - distance) / 50);
+            } else if (distance < 1000) {
+                score = Math.floor(500 * (1000 - distance) / 900);
+            } else {
+                score = 0;
+            }
+            
+            return Math.max(0, score);
+        }
+
+        // Формула Haversine для расчета расстояния
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Радиус Земли в км
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Проверить ответ
+        function submitGuess() {
+            if (!playerMarker) {
+                alert('Сначала кликните на карту, чтобы отметить ваше предположение!');
+                return;
+            }
+            
+            const playerLat = playerMarker.getLatLng().lat;
+            const playerLng = playerMarker.getLatLng().lng;
+            const score = calculateScore(playerLat, playerLng);
+            const distance = haversineDistance(playerLat, playerLng, currentLandmark.lat, currentLandmark.lng);
+            
+            // Показываем правильный ответ
+            showAnswer();
+            
+            // Отображаем результат
+            document.getElementById('score').textContent = score;
+            document.getElementById('score-message').textContent = 
+                `Расстояние: ${distance.toFixed(1)} км`;
+            document.getElementById('score-display').style.display = 'block';
+            
+            gameActive = false;
+        }
+
+        // Новая игра
+        function newGame() {
+            // Очищаем карту
+            if (map) {
+                map.remove();
+            }
+            
+            // Сбрасываем переменные
+            playerMarker = null;
+            correctMarker = null;
+            gameActive = true;
+            
+            // Инициализируем новую игру
+            initGame();
+        }
+
+        // Запускаем игру при загрузке страницы
+        window.addEventListener('load', function() {
+            setTimeout(initGame, 1000); // Небольшая задержка для эффекта загрузки
+        });
+    </script>
+</body>
+</html>
